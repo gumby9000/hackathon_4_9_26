@@ -15,8 +15,10 @@ import "mapbox-gl/dist/mapbox-gl.css";
       projection: 'mercator',
       minZoom: '2.5',
       style: "mapbox://styles/mapbox/dark-v11",
-      center: [-69, 29.89],
-      zoom: 4 // starting zoom
+      // center: [-69, 29.89],
+      center: [0,0],
+      // zoom: 4 // starting zoom
+      zoom: 1 // starting zoom
   });
 
   const genLayer = {
@@ -24,15 +26,18 @@ import "mapbox-gl/dist/mapbox-gl.css";
         type: 'custom',
 
         onAdd: function (map, gl) {
+          this.map = map;
           this.numvertices = 0;
           const vertexSource = `
                       uniform mat4 u_matrix;
                       attribute vec2 a_pos;
+                      uniform float u_world_offset;
                       //attribute vertexColor;
                       
                       //varying vec3 fragmentColor;
                       void main() {
-                          gl_Position = u_matrix * vec4(a_pos, 0.0, 1.0);
+                          vec4 offset_pos = vec4(a_pos.x + u_world_offset, a_pos.y, 0.0, 1.0);
+                          gl_Position = u_matrix * offset_pos;
                       }`;
 
           const fragmentSource = `
@@ -57,37 +62,24 @@ import "mapbox-gl/dist/mapbox-gl.css";
           this.aPos = gl.getAttribLocation(this.program, 'a_pos');
 
           const grid = [];
-          const latStart = 0;
-          const latEnd = 85;
-          const lngStart = -80.5;
-          const lngEnd = -80;
-          // const latStart = -89.5;
-          // const latEnd = 89.0;
-          // const lngStart = -179;
-          // const lngEnd = 179.0;
 
-          const tempData =[[-80,28],[-80,27.5]]
+          //todo handle date line
+          const coord = {x: 0, y: 0, z: 0};
+          const vertex2 = {x: 0, y: 1, z: 0}; 
+          const vertex3 = {x: 1, y: 0, z: 0};
 
-          for(let lat = latStart; lat <= latEnd; lat += 0.5) {
-            for(let lng = lngStart; lng <= lngEnd; lng += 0.5) {
-              const coord = mapboxgl.MercatorCoordinate.fromLngLat({lng: lng-0.25, lat:lat-0.25});
-              const vertex2 = mapboxgl.MercatorCoordinate.fromLngLat({lng: lng-0.25, lat:lat+0.25});
-              const vertex3 = mapboxgl.MercatorCoordinate.fromLngLat({lng: lng+0.25, lat: lat-0.25});
+          const vertex4 = vertex2
+          const vertex5 = vertex3
+          const vertex6 = {x: 1, y: 1, z: 0};
+          grid.push(coord.x, coord.y);
+          grid.push(vertex2.x, vertex2.y);
+          grid.push(vertex3.x,vertex3.y);
 
-              const vertex4 = vertex2
-              const vertex5 = vertex3
-              const vertex6 = mapboxgl.MercatorCoordinate.fromLngLat({lng: lng+0.25, lat: lat+0.25});
+          grid.push(vertex4.x,vertex4.y);
+          grid.push(vertex5.x,vertex5.y);
+          grid.push(vertex6.x,vertex6.y);
+          this.numvertices = 6;
 
-              grid.push(coord.x, coord.y);
-              grid.push(vertex2.x, vertex2.y);
-              grid.push(vertex3.x,vertex3.y);
-
-              grid.push(vertex4.x,vertex4.y);
-              grid.push(vertex5.x,vertex5.y);
-              grid.push(vertex6.x,vertex6.y);
-              this.numvertices+=6;
-            }
-          }
           // const colors = [];
           // for(let lat = latStart; lat <= latEnd; lat += 0.5) {
           //   for(let lng = lngStart; lng <= lngEnd; lng += 0.5) {
@@ -129,6 +121,21 @@ import "mapbox-gl/dist/mapbox-gl.css";
 
         render: function (gl, matrix) {
           gl.useProgram(this.program);
+          
+          const bounds = this.map.getBounds();
+          const west = bounds.getWest();
+          const east = bounds.getEast();
+
+          const startWorld = Math.floor((west +180) / 360);
+          const endWorld = Math.floor((east +180) / 360);
+          
+          for(let i = startWorld; i <= endWorld; i++) {
+            const offsetLoc = gl.getUniformLocation(this.program, 'u_world_offset');
+
+            gl.uniform1f(offsetLoc, i);
+            
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+          }
           gl.uniformMatrix4fv(
             gl.getUniformLocation(this.program, 'u_matrix'),
             false,
@@ -139,8 +146,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
           gl.vertexAttribPointer(this.aPos, 2, gl.FLOAT, false, 0, 0);
           gl.enable(gl.BLEND);
           gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-          gl.drawArrays(gl.TRIANGLES, 0, this.numvertices); // don't understand why TRIANGLE not work, but its better this way //update triangles may work
-          // console.log(this.numvertices);
+          // gl.drawArrays(gl.TRIANGLES, 0, this.numvertices); // don't understand why TRIANGLE not work, but its better this way //update triangles may work
         }
       };
 map.on('load',() => { map.addLayer(genLayer)})

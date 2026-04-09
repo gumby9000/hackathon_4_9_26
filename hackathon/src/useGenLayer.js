@@ -1,25 +1,14 @@
-import './style.css'
-import javascriptLogo from './assets/javascript.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import { setupCounter } from './counter.js'
-import mapboxgl from 'mapbox-gl';
-import "mapbox-gl/dist/mapbox-gl.css";
+import React, { useEffect, useState, useRef } from "react";
+import mapboxgl from "mapbox-gl"
+import { Nanum_Myeongjo } from "next/font/google";
+export const useGenLayer = (data, map, gl) => {
+    
+  function getRandomInRange(min, max) {
+    return Math.random() * (max - min) + min;
+  }
 
-  // sets the access token, associating the map with your Mapbox account and its permissions
-  mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
-  // creates the map, setting the container to the id of the div you added in step 2, and setting the initial center and zoom level of the map
-  const map = new mapboxgl.Map({
-      container: 'map', // container ID
-      projection: 'mercator',
-      minZoom: '2.5',
-      style: "mapbox://styles/mapbox/dark-v11",
-      center: [-69, 29.89],
-      zoom: 4 // starting zoom
-  });
-
-  const genLayer = {
+    return {
         id: 'highlight',
         type: 'custom',
 
@@ -57,8 +46,8 @@ import "mapbox-gl/dist/mapbox-gl.css";
           this.aPos = gl.getAttribLocation(this.program, 'a_pos');
 
           const grid = [];
-          const latStart = 0;
-          const latEnd = 85;
+          const latStart = 26;
+          const latEnd = 27;
           const lngStart = -80.5;
           const lngEnd = -80;
           // const latStart = -89.5;
@@ -143,5 +132,4 @@ import "mapbox-gl/dist/mapbox-gl.css";
           // console.log(this.numvertices);
         }
       };
-map.on('load',() => { map.addLayer(genLayer)})
-// map.addLayer(genLayer);
+}

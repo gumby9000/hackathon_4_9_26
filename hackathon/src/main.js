@@ -122,20 +122,6 @@ import "mapbox-gl/dist/mapbox-gl.css";
         render: function (gl, matrix) {
           gl.useProgram(this.program);
           
-          const bounds = this.map.getBounds();
-          const west = bounds.getWest();
-          const east = bounds.getEast();
-
-          const startWorld = Math.floor((west +180) / 360);
-          const endWorld = Math.floor((east +180) / 360);
-          
-          for(let i = startWorld; i <= endWorld; i++) {
-            const offsetLoc = gl.getUniformLocation(this.program, 'u_world_offset');
-
-            gl.uniform1f(offsetLoc, i);
-            
-            gl.drawArrays(gl.TRIANGLES, 0, 6);
-          }
           gl.uniformMatrix4fv(
             gl.getUniformLocation(this.program, 'u_matrix'),
             false,
@@ -146,8 +132,21 @@ import "mapbox-gl/dist/mapbox-gl.css";
           gl.vertexAttribPointer(this.aPos, 2, gl.FLOAT, false, 0, 0);
           gl.enable(gl.BLEND);
           gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-          // gl.drawArrays(gl.TRIANGLES, 0, this.numvertices); // don't understand why TRIANGLE not work, but its better this way //update triangles may work
+          
+
+          const bounds = this.map.getBounds();
+
+          const startWorld = Math.floor((bounds.getWest() +180) / 360);
+          const endWorld = Math.floor((bounds.getEast() +180) / 360);
+          
+          const offsetLoc = gl.getUniformLocation(this.program, 'u_world_offset');
+
+          for(let i = startWorld; i <= endWorld; i++) {
+
+            gl.uniform1f(offsetLoc, i);
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+          }
         }
       };
+
 map.on('load',() => { map.addLayer(genLayer)})
-// map.addLayer(genLayer);

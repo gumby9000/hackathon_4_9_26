@@ -18,16 +18,23 @@ import fragmentSource from './shaders/fragment.glsl?raw';
     const size = 256;
     const data = new Uint8Array(size * size * 4);
     
-    for (let i=0; i< size * size; i++ ) {
-      // R = Wind X, G = Wind Y, B = Speed, A = 255
-      data[i * 4] = Math.random() * 255; // Random U
-      data[i * 4 + 1] = Math.random() * 255; // Random V
-      // data[i * 4] = (Math.sin(i / 100) + 1) * 127;     // Mock U
-      // data[i * 4 + 1] = (Math.cos(i / 100) + 1) * 127; // Mock V
-      data[i * 4 + 2] = 0; // Unused
-      data[i * 4 + 3] = 255; //Full alpha
-      
+for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+        const i = y * size + x;
+        const lat = (y / size) * 180 - 90; // -90 to 90
+
+        // Simulate Trade Winds (Easterlies) near equator, Westerlies elsewhere
+        let u = Math.abs(lat) < 30 ? -15.0 : 15.0; 
+        let v = Math.sin(x / 10) * 5.0; // Some wavy North/South movement
+
+        // Pack into 0-255 (assuming max wind is 30m/s)
+        // Range: -30 to +30 maps to 0 to 255
+        data[i * 4]     = (u + 30) * (255 / 60); 
+        data[i * 4 + 1] = (v + 30) * (255 / 60); 
+        data[i * 4 + 2] = 0;
+        data[i * 4 + 3] = 255;
     }
+}
     
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -79,12 +86,12 @@ import fragmentSource from './shaders/fragment.glsl?raw';
                           
                           
                           //4. color ramp
-                          // vec3 baseColor = vec3(0.05, 0.15, 0.25);
-                          // vec3 accentColor = vec3(0.0, 0.8, 0.7);
-                          // vec3 finalColor = mix(baseColor, accentColor, speed);
+                          vec3 baseColor = vec3(0.05, 0.15, 0.25);
+                          vec3 accentColor = vec3(0.0, 0.8, 0.7);
+                          vec3 finalColor = mix(baseColor, accentColor, speed);
 
-                          // gl_FragColor = vec4(finalColor, 0.5);
-                          gl_FragColor = vec4(0.0, speed, speed, 0.4);
+                          gl_FragColor = vec4(finalColor, 0.3);
+                          // gl_FragColor = vec4(0.0, speed, speed, 0.4);
                       }`;
 
           const vertexShader = gl.createShader(gl.VERTEX_SHADER);

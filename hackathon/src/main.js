@@ -20,10 +20,10 @@ import fragmentSource from './shaders/fragment.glsl?raw';
     
     for (let i=0; i< size * size; i++ ) {
       // R = Wind X, G = Wind Y, B = Speed, A = 255
-      // data[i * 4] = Math.random() * 255; // Random U
-      // data[i * 4 + 1] = Math.random() * 255; // Random V
-      data[i * 4] = (Math.sin(i / 100) + 1) * 127;     // Mock U
-      data[i * 4 + 1] = (Math.cos(i / 100) + 1) * 127; // Mock V
+      data[i * 4] = Math.random() * 255; // Random U
+      data[i * 4 + 1] = Math.random() * 255; // Random V
+      // data[i * 4] = (Math.sin(i / 100) + 1) * 127;     // Mock U
+      // data[i * 4 + 1] = (Math.cos(i / 100) + 1) * 127; // Mock V
       data[i * 4 + 2] = 0; // Unused
       data[i * 4 + 3] = 255; //Full alpha
       
@@ -62,20 +62,29 @@ import fragmentSource from './shaders/fragment.glsl?raw';
           const fragmentSource = `
                       precision highp float;
                       varying vec2 v_pos;
+                      uniform sampler2D u_wind;
 
                       void main() {
-                          // Simulated Wind Speed (0.0 to 1.0)
-                          // This creates a pattern that looks like weather data
-                          float speed = 0.5 + 0.5 * sin(v_pos.x * 8.0) * cos(v_pos.y * 4.0);
+                      
+                          //1. sample the texture
+                          vec4 windData = texture2D(u_wind, v_pos);
+                          
+                          //2. unpack U and V (mapping 0..1 to -1..1)
+                          float u = windData.r * 2.0 - 1.0;
+                          float v = windData.g * 2.0 - 1.0;
+                          
+                          //3. calaculate speed
+                          // float speed = length(vec2(u,v));
+                          float speed = windData.r;
+                          
+                          
+                          //4. color ramp
+                          // vec3 baseColor = vec3(0.05, 0.15, 0.25);
+                          // vec3 accentColor = vec3(0.0, 0.8, 0.7);
+                          // vec3 finalColor = mix(baseColor, accentColor, speed);
 
-                          // Color Ramp: Dark Blue (Slow) -> Teal (Mid) -> Yellow (Fast)
-                          vec3 slow = vec3(0.05, 0.1, 0.2);
-                          vec3 mid = vec3(0.0, 0.5, 0.5);
-                          vec3 fast = vec3(1.0, 1.0, 0.4);
-
-                          vec3 finalColor = speed < 0.5 ? mix(slow, mid, speed * 2.0) : mix(mid, fast, (speed - 0.5) * 2.0);
-
-                          gl_FragColor = vec4(finalColor, 0.4);
+                          // gl_FragColor = vec4(finalColor, 0.5);
+                          gl_FragColor = vec4(0.0, speed, speed, 0.4);
                       }`;
 
           const vertexShader = gl.createShader(gl.VERTEX_SHADER);
@@ -152,6 +161,11 @@ import fragmentSource from './shaders/fragment.glsl?raw';
           for(let i = startWorld; i <= endWorld; i++) {
 
             gl.uniform1f(offsetLoc, i);
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, this.windTexture);
+            
+            gl.uniform1i(this.uWindLocation, 0);
+
             gl.drawArrays(gl.TRIANGLES, 0, 6);//execute fragment shader for every pixel inside triangles
           }
         }

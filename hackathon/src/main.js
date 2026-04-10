@@ -1,6 +1,8 @@
 import './style.css'
 import mapboxgl from 'mapbox-gl';
 import "mapbox-gl/dist/mapbox-gl.css";
+import vertexSource from './shaders/vertex.glsl?raw';
+import fragmentSource from './shaders/fragment.glsl?raw';
 
   mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 

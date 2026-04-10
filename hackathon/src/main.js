@@ -10,8 +10,8 @@ import fragmentSource from './shaders/fragment.glsl?raw';
       container: 'map', // container ID
       projection: 'mercator',
       style: "mapbox://styles/mapbox/dark-v11",
-      center: [0,0],
-      zoom: 2
+      center: [-80,27],
+      zoom: 3
   });
 
   function createWindTexture(gl) {
@@ -70,28 +70,47 @@ for (let y = 0; y < size; y++) {
                       precision highp float;
                       varying vec2 v_pos;
                       uniform sampler2D u_wind;
+                      uniform float u_uMin;
+                      uniform float u_uMax;
+                      uniform float u_vMin;
+                      uniform float u_vMax;
 
                       void main() {
                       
-                          //1. sample the texture
-                          vec4 windData = texture2D(u_wind, v_pos);
-                          
-                          //2. unpack U and V (mapping 0..1 to -1..1)
-                          float u = windData.r * 2.0 - 1.0;
-                          float v = windData.g * 2.0 - 1.0;
-                          
-                          //3. calaculate speed
-                          // float speed = length(vec2(u,v));
-                          float speed = windData.r;
-                          
-                          
-                          //4. color ramp
-                          vec3 baseColor = vec3(0.05, 0.15, 0.25);
-                          vec3 accentColor = vec3(0.0, 0.8, 0.7);
-                          vec3 finalColor = mix(baseColor, accentColor, speed);
+                          float y = v_pos.y;
+                          float lat = 2.0 * atan(exp(3.14159265 * (1.0 - 2.0 * y))) - 1.57079632679;
 
-                          gl_FragColor = vec4(finalColor, 0.3);
-                          // gl_FragColor = vec4(0.0, speed, speed, 0.4);
+                          float texY = 1.0 - (lat / 3.14159265 + 0.5);
+                          
+                          vec2 lookupPos = vec2(v_pos.x, texY);
+                          vec4 color = texture2D(u_wind, lookupPos);
+                          
+                          float u = color.r * (u_uMax - u_uMin) + u_uMin;
+                          float v = color.g * (u_vMax - u_vMin) + u_vMin;
+
+                          float speed = length(vec2(u, v));
+                          float n = clamp(speed / 30.0, 0.0, 1.0);
+
+                          vec3 lowColor = vec3(0.05, 0.05, 0.2);
+                          vec3 highColor = vec3(0.9, 0.3, 0.0);
+                          
+                          vec3 c0 = vec3(0.05, 0.05, 0.2);  // Dark Blue (0)
+                          vec3 c1 = vec3(0.0, 0.4, 0.8);   // Light Blue
+                          vec3 c2 = vec3(0.0, 0.8, 0.4);   // Green
+                          vec3 c3 = vec3(0.9, 0.9, 0.2);   // Yellow
+                          vec3 c4 = vec3(0.9, 0.3, 0.0);   // Orange/Red
+                          vec3 c5 = vec3(0.6, 0.1, 0.6);   // Purple (Peak)
+
+                          vec3 _color;
+
+                          if (n < 0.2)      _color = mix(c0, c1, n * 5.0);
+                          else if (n < 0.4) _color = mix(c1, c2, (n - 0.2) * 5.0);
+                          else if (n < 0.6) _color = mix(c2, c3, (n - 0.4) * 5.0);
+                          else if (n < 0.8) _color = mix(c3, c4, (n - 0.6) * 5.0);
+                          else              _color = mix(c4, c5, (n - 0.8) * 5.0);
+
+                          // gl_FragColor = vec4(mix(lowColor, highColor, n), 0.5);
+                          gl_FragColor = vec4(_color, 0.4);
                       }`;
 
           const vertexShader = gl.createShader(gl.VERTEX_SHADER);
@@ -107,8 +126,31 @@ for (let y = 0; y < size; y++) {
           gl.attachShader(this.program, fragmentShader);
           gl.linkProgram(this.program);
 
+          this.windTexture = gl.createTexture();
+
+          const img = new Image();
+          img.onload = () => {
+            gl.bindTexture(gl.TEXTURE_2D, this.windTexture);
+
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            
+            this.map.triggerRepaint();
+          }
+          
+          img.src = './image.png';
           this.uWindLocation = gl.getUniformLocation(this.program, "u_wind");
-          this.windTexture = createWindTexture(gl);
+
+          this.uMinLoc = gl.getUniformLocation(this.program, "u_uMin");
+          this.uMaxLoc = gl.getUniformLocation(this.program, "u_uMax");
+          this.vMinLoc = gl.getUniformLocation(this.program, "u_vMin");
+          this.vMaxLoc = gl.getUniformLocation(this.program, "u_vMax");
 
           this.aPos = gl.getAttribLocation(this.program, 'a_pos');
 
@@ -146,6 +188,15 @@ for (let y = 0; y < size; y++) {
         render: function (gl, matrix) {
           gl.useProgram(this.program);
           
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, this.windTexture);
+          gl.uniform1i(this.uWindLocation, 0);
+          
+          gl.uniform1f(this.uMinLoc, -21.32);
+          gl.uniform1f(this.uMaxLoc, 26.8);
+          gl.uniform1f(this.vMinLoc, -21.57);
+          gl.uniform1f(this.vMaxLoc, 21.42);
+
           gl.uniformMatrix4fv(
             gl.getUniformLocation(this.program, 'u_matrix'),
             false,

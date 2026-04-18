@@ -10,8 +10,8 @@ import fragmentSource from './shaders/fragment.glsl?raw';
       container: 'map', // container ID
       projection: 'mercator',
       style: "mapbox://styles/mapbox/dark-v11",
-      center: [-80,27],
-      zoom: 3
+      center: [-50,27],
+      zoom: 2
   });
 
   const genLayer = {
@@ -47,7 +47,7 @@ import fragmentSource from './shaders/fragment.glsl?raw';
                           float y = v_pos.y;
                           float lat = 2.0 * atan(exp(3.14159265 * (1.0 - 2.0 * y))) - 1.57079632679;
 
-                          float texY = 1.0 - (lat / 3.14159265 + 0.5);
+                          float texY =  (lat / 3.14159265 + 0.5);
                           
                           vec2 lookupPos = vec2(v_pos.x, texY);
                           vec4 color = texture2D(u_wind, lookupPos);
@@ -56,7 +56,7 @@ import fragmentSource from './shaders/fragment.glsl?raw';
                           float v = color.g * (u_vMax - u_vMin) + u_vMin;
 
                           float speed = length(vec2(u, v));
-                          float n = clamp(speed / 30.0, 0.0, 1.0);
+                          float n = clamp(speed / 20.0, 0.0, 1.0);
 
                           vec3 lowColor = vec3(0.05, 0.05, 0.2);
                           vec3 highColor = vec3(0.9, 0.3, 0.0);
@@ -76,7 +76,7 @@ import fragmentSource from './shaders/fragment.glsl?raw';
                           else if (n < 0.8) _color = mix(c3, c4, (n - 0.6) * 5.0);
                           else              _color = mix(c4, c5, (n - 0.8) * 5.0);
 
-                          gl_FragColor = vec4(_color, 0.4);
+                          gl_FragColor = vec4(_color, 0.9);
                       }`;
 
           const vertexShader = gl.createShader(gl.VERTEX_SHADER);

@@ -11,7 +11,7 @@ void main() {
   float y = v_pos.y;
   float lat = 2.0 * atan(exp(3.14159265 * (1.0 - 2.0 * y))) - 1.57079632679;
 
-  float texY = 1.0 - (lat / 3.14159265 + 0.5);
+  float texY = (lat / 3.14159265 + 0.5);
 
   vec2 lookupPos = vec2(v_pos.x, texY);
   vec4 color = texture2D(u_wind, lookupPos);

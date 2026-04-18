@@ -14,40 +14,6 @@ import fragmentSource from './shaders/fragment.glsl?raw';
       zoom: 3
   });
 
-  function createWindTexture(gl) {
-    const size = 256;
-    const data = new Uint8Array(size * size * 4);
-    
-for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-        const i = y * size + x;
-        const lat = (y / size) * 180 - 90; // -90 to 90
-
-        // Simulate Trade Winds (Easterlies) near equator, Westerlies elsewhere
-        let u = Math.abs(lat) < 30 ? -15.0 : 15.0; 
-        let v = Math.sin(x / 10) * 5.0; // Some wavy North/South movement
-
-        // Pack into 0-255 (assuming max wind is 30m/s)
-        // Range: -30 to +30 maps to 0 to 255
-        data[i * 4]     = (u + 30) * (255 / 60); 
-        data[i * 4 + 1] = (v + 30) * (255 / 60); 
-        data[i * 4 + 2] = 0;
-        data[i * 4 + 3] = 255;
-    }
-}
-    
-    const texture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, size, size, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    
-    // Prevent the texture from "bleeding" or wrapping weirdly at the edges
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-    return texture;
-  }
   const genLayer = {
         id: 'highlight',
         type: 'custom',
@@ -64,6 +30,7 @@ for (let y = 0; y < size; y++) {
                           v_pos = a_pos; // save raw 0.0-1.0 pos
                           vec4 offset_pos = vec4(a_pos.x + u_world_offset, a_pos.y, 0.0, 1.0);
                           gl_Position = u_matrix * offset_pos;
+                          gl_PointSize = 2.5;
                       }`;
 
           const fragmentSource = `
@@ -109,7 +76,6 @@ for (let y = 0; y < size; y++) {
                           else if (n < 0.8) _color = mix(c3, c4, (n - 0.6) * 5.0);
                           else              _color = mix(c4, c5, (n - 0.8) * 5.0);
 
-                          // gl_FragColor = vec4(mix(lowColor, highColor, n), 0.5);
                           gl_FragColor = vec4(_color, 0.4);
                       }`;
 
@@ -142,6 +108,15 @@ for (let y = 0; y < size; y++) {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
             
             this.map.triggerRepaint();
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            this.windData = ctx.getImageData(0, 0, img.width, img.height).data;
+            this.windWidth = img.width;
+            this.windHeight = img.height;
           }
           
           img.src = './image.png';
@@ -183,6 +158,14 @@ for (let y = 0; y < size; y++) {
             gl.STATIC_DRAW
           );
           
+          // At the very end of onAdd:
+          this.numParticles = 10000;
+          this.particles = [];
+          for (let i = 0; i < this.numParticles; i++) {
+              this.particles.push({ x: Math.random(), y: Math.random() });
+          }
+          this.particlePositions = new Float32Array(this.numParticles * 2);
+          this.particleBuffer = gl.createBuffer();
         },
 
         render: function (gl, matrix) {
@@ -225,6 +208,48 @@ for (let y = 0; y < size; y++) {
             gl.uniform1i(this.uWindLocation, 0);
 
             gl.drawArrays(gl.TRIANGLES, 0, 6);//execute fragment shader for every pixel inside triangles
+          }
+          
+          if (this.windData) {
+              for (let i = 0; i < this.numParticles; i++) {
+                  const p = this.particles[i];
+
+                  // 1. Map 0.0-1.0 pos to wind image pixels
+                  const px = Math.floor(p.x * this.windWidth);
+                  const py = Math.floor(p.y * this.windHeight);
+                  const idx = (py * this.windWidth + px) * 4;
+
+                  // 2. Extract U and V (Match your metadata)
+                  const u = (this.windData[idx] / 255.0) * (26.8 - (-21.32)) + (-21.32);
+                  const v = (this.windData[idx + 1] / 255.0) * (21.42 - (-21.57)) + (-21.57);
+
+                  // 3. Move them (Speed factor: 0.0001)
+                  p.x += u * 0.0001;
+                  p.y -= v * 0.0001; // Subtract because image Y is often inverted
+
+                  // 4. Wrap around or reset
+                  if (p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) {
+                      p.x = Math.random();
+                      p.y = Math.random();
+                  }
+
+                  // 5. Fill the Float32Array
+                  this.particlePositions[i * 2] = p.x;
+                  this.particlePositions[i * 2 + 1] = p.y;
+              }
+
+              // 6. Draw the particles as points
+              gl.bindBuffer(gl.ARRAY_BUFFER, this.particleBuffer);
+              gl.bufferData(gl.ARRAY_BUFFER, this.particlePositions, gl.DYNAMIC_DRAW);
+              gl.enableVertexAttribArray(this.aPos);
+              gl.vertexAttribPointer(this.aPos, 2, gl.FLOAT, false, 0, 0);
+              
+              // Set a neutral offset for particles (center world)
+              gl.uniform1f(offsetLoc, 0); 
+              gl.drawArrays(gl.POINTS, 0, this.numParticles);
+
+              // 7. Loop the animation
+              this.map.triggerRepaint();
           }
         }
       };

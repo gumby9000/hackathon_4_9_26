@@ -28,10 +28,13 @@ import fragmentSource from './shaders/fragment.glsl?raw';
                       uniform mat4 u_matrix;
                       uniform float u_world_offset;
                       attribute vec2 a_pos;
+                      attribute float a_alpha;
                       varying vec2 v_pos;
+                      varying float v_alpha;
                       
                       void main() {
                           v_pos = a_pos; // save raw 0.0-1.0 pos
+                          v_alpha = a_alpha;
                           vec4 offset_pos = vec4(a_pos.x + u_world_offset, a_pos.y, 0.0, 1.0);
                           gl_Position = u_matrix * offset_pos;
                           gl_PointSize = 2.5;
@@ -40,6 +43,7 @@ import fragmentSource from './shaders/fragment.glsl?raw';
           const fragmentSource = `
                       precision highp float;
                       varying vec2 v_pos;
+                      varying float v_alpha;
                       uniform sampler2D u_wind;
                       uniform float u_uMin;
                       uniform float u_uMax;
@@ -162,11 +166,11 @@ import fragmentSource from './shaders/fragment.glsl?raw';
             gl.STATIC_DRAW
           );
           
-          this.numParticles = 200;
+          this.numParticles = 90000;
           this.particles = [];
           //add particles at random pos
           for (let i = 0; i < this.numParticles; i++) {
-              this.particles.push({ x: Math.random(), y: Math.random(), life: Math.random() });
+              this.particles.push({ x: Math.random(), y: Math.random(), life: Math.random(), history: [] });
               // this.particles.push({ x: 1, y: 1, life: 1 });
           }
           this.particlePositions = new Float32Array(this.numParticles * 2);
@@ -227,39 +231,30 @@ import fragmentSource from './shaders/fragment.glsl?raw';
                 const py = Math.floor((1 - texY) * this.windHeight); // use texY instead of p.y
                   const idx = (py * this.windWidth + px) * 4;
 
-                  // 2. Extract U and V (Match your metadata)
+                  //u max, u min
+                  //v max, v min
                   const u = (this.windData[idx] / 255.0) * (26.8 - (-21.32)) + (-21.32);
                   const v = (this.windData[idx + 1] / 255.0) * (21.42 - (-21.57)) + (-21.57);
 
-                  // 3. Move them (Speed factor: 0.0001)
                   p.x += u * 0.00001;
-                  p.y -= v * 0.00001; // Subtract because image Y is often inverted
+                  p.y -= v * 0.00001;
                   p.life -= 0.01;
 
-                  // if(p.x > 1) {
-                  //   p.x = p.x % 1 //if crosses westward, 
-                  // }
-                  if(p.x < 0.0) {
-                    p.x = 1+p.x
-                  }
                   if(p.life <= 0) {
-                    // p.x = Math.random();
-                    if(idx/4 % 2 == 0) {
-                      p.x = 0.99 + Math.random() * 0.1;
-                      p.y = 0.6 + Math.random() * 0.1;
-                    } else {
-                      p.x = Math.random() * 0.01;
-                      p.y = 0.3 + Math.random() * 0.1;
-                      console.log(p.x + ", " + p.y)
-                    }
+                    // if(idx/4 % 2 == 0) {
+                    //   p.x = 0.99 + Math.random() * 0.01;
+                    //   p.y = 0.55 + Math.random() * 0.1;
+                    //   console.log(p.x + ", " + p.y)
+                    // } else {
+                    //   p.x = Math.random() * 0.01;
+                    //   p.y = 0.3 + Math.random() * 0.1;
+                    //   // console.log(p.x + ", " + p.y)
+                    // }
+                    // p.life = (Math.random() * 10) +Math.random();
+                    p.x = Math.random();
+                    p.y = Math.random();
                     p.life = Math.random();
                   }
-
-                  // 4. Wrap around or reset
-                  // if (p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) {
-                  //     p.x = Math.random();
-                  //     p.y = Math.random();
-                  // }
 
                   // 5. Fill the Float32Array
                   this.particlePositions[i * 2] = p.x;

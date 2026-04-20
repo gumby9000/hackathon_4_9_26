@@ -11,7 +11,11 @@ import fragmentSource from './shaders/fragment.glsl?raw';
       projection: 'mercator',
       style: "mapbox://styles/mapbox/dark-v11",
       center: [-50,27],
-      zoom: 2
+      zoom: 1,
+      // minZoom: 2,
+      pitchWithRotate: false,
+      dragRotate: false,
+      touchPitch: { enabled: false },
   });
 
   const genLayer = {
@@ -56,7 +60,7 @@ import fragmentSource from './shaders/fragment.glsl?raw';
                           float v = color.g * (u_vMax - u_vMin) + u_vMin;
 
                           float speed = length(vec2(u, v));
-                          float n = clamp(speed / 20.0, 0.0, 1.0);
+                          float n = clamp(speed / 22.0, 0.0, 1.0);
 
                           vec3 lowColor = vec3(0.05, 0.05, 0.2);
                           vec3 highColor = vec3(0.9, 0.3, 0.0);
@@ -76,7 +80,7 @@ import fragmentSource from './shaders/fragment.glsl?raw';
                           else if (n < 0.8) _color = mix(c3, c4, (n - 0.6) * 5.0);
                           else              _color = mix(c4, c5, (n - 0.8) * 5.0);
 
-                          gl_FragColor = vec4(_color, 0.9);
+                          gl_FragColor = vec4(_color, 0.4);
                       }`;
 
           const vertexShader = gl.createShader(gl.VERTEX_SHADER);
@@ -158,11 +162,12 @@ import fragmentSource from './shaders/fragment.glsl?raw';
             gl.STATIC_DRAW
           );
           
-          // At the very end of onAdd:
-          this.numParticles = 10000;
+          this.numParticles = 200;
           this.particles = [];
+          //add particles at random pos
           for (let i = 0; i < this.numParticles; i++) {
-              this.particles.push({ x: Math.random(), y: Math.random() });
+              this.particles.push({ x: Math.random(), y: Math.random(), life: Math.random() });
+              // this.particles.push({ x: 1, y: 1, life: 1 });
           }
           this.particlePositions = new Float32Array(this.numParticles * 2);
           this.particleBuffer = gl.createBuffer();
@@ -216,7 +221,10 @@ import fragmentSource from './shaders/fragment.glsl?raw';
 
                   // 1. Map 0.0-1.0 pos to wind image pixels
                   const px = Math.floor(p.x * this.windWidth);
-                  const py = Math.floor(p.y * this.windHeight);
+                  // const py = Math.floor(p.y * this.windHeight);
+                const lat = 2 * Math.atan(Math.exp(Math.PI * (1 - 2 * p.y))) - Math.PI / 2;
+                const texY = (lat / Math.PI + 0.5);
+                const py = Math.floor((1 - texY) * this.windHeight); // use texY instead of p.y
                   const idx = (py * this.windWidth + px) * 4;
 
                   // 2. Extract U and V (Match your metadata)
@@ -224,14 +232,34 @@ import fragmentSource from './shaders/fragment.glsl?raw';
                   const v = (this.windData[idx + 1] / 255.0) * (21.42 - (-21.57)) + (-21.57);
 
                   // 3. Move them (Speed factor: 0.0001)
-                  p.x += u * 0.0001;
-                  p.y -= v * 0.0001; // Subtract because image Y is often inverted
+                  p.x += u * 0.00001;
+                  p.y -= v * 0.00001; // Subtract because image Y is often inverted
+                  p.life -= 0.01;
+
+                  // if(p.x > 1) {
+                  //   p.x = p.x % 1 //if crosses westward, 
+                  // }
+                  if(p.x < 0.0) {
+                    p.x = 1+p.x
+                  }
+                  if(p.life <= 0) {
+                    // p.x = Math.random();
+                    if(idx/4 % 2 == 0) {
+                      p.x = 0.99 + Math.random() * 0.1;
+                      p.y = 0.6 + Math.random() * 0.1;
+                    } else {
+                      p.x = Math.random() * 0.01;
+                      p.y = 0.3 + Math.random() * 0.1;
+                      console.log(p.x + ", " + p.y)
+                    }
+                    p.life = Math.random();
+                  }
 
                   // 4. Wrap around or reset
-                  if (p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) {
-                      p.x = Math.random();
-                      p.y = Math.random();
-                  }
+                  // if (p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) {
+                  //     p.x = Math.random();
+                  //     p.y = Math.random();
+                  // }
 
                   // 5. Fill the Float32Array
                   this.particlePositions[i * 2] = p.x;

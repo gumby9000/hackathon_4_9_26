@@ -72,14 +72,22 @@ import fragmentSource from './shaders/fragment.glsl?raw';
                           
                           vec3 c0 = vec3(0.05, 0.05, 0.2);  // Dark Blue (0)
                           vec3 c1 = vec3(0.0, 0.4, 0.8);   // Light Blue
-                          vec3 c2 = vec3(0.0, 0.8, 0.4);   // Green
-                          vec3 c3 = vec3(0.9, 0.9, 0.2);   // Yellow
-                          vec3 c4 = vec3(0.9, 0.3, 0.0);   // Orange/Red
-                          vec3 c5 = vec3(0.6, 0.1, 0.6);   // Purple (Peak)
+                          vec3 c2 = vec3(0.21, 0.82, 0.4);   // Green
+                          vec3 c3 = vec3(0.933, 0.92, 0.055);   // Yellow
+                          vec3 c4 = vec3(0.992, 0.45, 0.15);   // Orange/Red
+                          vec3 c5 = vec3(0.722, 0.024, 0.063);   // Purple (Peak)
+
+                          // vec3 c0 = vec3(0.05, 0.05, 0.2);  // Dark Blue (0)
+                          // vec3 c1 = vec3(0.0, 0.4, 0.8);   // Light Blue
+                          // vec3 c2 = vec3(0.0, 0.8, 0.4);   // Green
+                          // vec3 c3 = vec3(0.9, 0.9, 0.2);   // Yellow
+                          // vec3 c4 = vec3(0.9, 0.3, 0.0);   // Orange/Red
+                          // vec3 c5 = vec3(0.6, 0.1, 0.6);   // Purple (Peak)
 
                           vec3 _color;
 
-                          if (n < 0.2)      _color = mix(c0, c1, n * 5.0);
+                          if (n == 0.0)      _color = vec3(0.05, 0.05, 0.1);
+                          else if (n < 0.2) _color = mix(c0, c1, n * 5.0);
                           else if (n < 0.4) _color = mix(c1, c2, (n - 0.2) * 5.0);
                           else if (n < 0.6) _color = mix(c2, c3, (n - 0.4) * 5.0);
                           else if (n < 0.8) _color = mix(c3, c4, (n - 0.6) * 5.0);
@@ -247,7 +255,7 @@ import fragmentSource from './shaders/fragment.glsl?raw';
 
                 // For 'direction from' (standard met/ocean data)
                 const u = -mag * Math.cos(rad);
-                const v = -mag * Math.sin(rad);
+                const v = mag * Math.sin(rad);
                 // const u = (this.windData[idx] / 255.0) * (26.8 - (-21.32)) + (-21.32);
                 // const v = (this.windData[idx + 1] / 255.0) * (21.42 - (-21.57)) + (-21.57);
 

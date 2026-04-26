@@ -11,7 +11,7 @@ import fragmentSource from './shaders/fragment.glsl?raw';
       projection: 'mercator',
       style: "mapbox://styles/mapbox/dark-v11",
       center: [-50,27],
-      zoom: 1,
+      zoom: 2,
       // minZoom: 2,
       pitchWithRotate: false,
       dragRotate: false,
@@ -136,6 +136,7 @@ import fragmentSource from './shaders/fragment.glsl?raw';
           this.vMaxLoc = gl.getUniformLocation(this.program, "u_vMax");
 
           this.aPos = gl.getAttribLocation(this.program, 'a_pos');
+          this.aAlpha = gl.getAttribLocation(this.program, 'a_alpha');
 
           const grid = [];
 
@@ -173,8 +174,12 @@ import fragmentSource from './shaders/fragment.glsl?raw';
               this.particles.push({ x: Math.random(), y: Math.random(), life: Math.random(), history: [] });
               // this.particles.push({ x: 1, y: 1, life: 1 });
           }
-          this.particlePositions = new Float32Array(this.numParticles * 2);
+          const TRAIL_LENGTH = 10;
+          this.trailLength = TRAIL_LENGTH;
+          this.particlePositions = new Float32Array(this.numParticles * TRAIL_LENGTH * 2);
+          this.particleAlphas = new Float32Array(this.numParticles * TRAIL_LENGTH)
           this.particleBuffer = gl.createBuffer();
+          this.alphaBuffer = gl.createBuffer();
         },
 
         render: function (gl, matrix) {
@@ -223,18 +228,19 @@ import fragmentSource from './shaders/fragment.glsl?raw';
               for (let i = 0; i < this.numParticles; i++) {
                   const p = this.particles[i];
 
+                  // p.history.push({x: p.x, y: p.y});
+                  // if(p.history.length > this.trailLength) p.history.shift();
+
                   // 1. Map 0.0-1.0 pos to wind image pixels
                   const px = Math.floor(p.x * this.windWidth);
-                  // const py = Math.floor(p.y * this.windHeight);
-                const lat = 2 * Math.atan(Math.exp(Math.PI * (1 - 2 * p.y))) - Math.PI / 2;
-                const texY = (lat / Math.PI + 0.5);
-                const py = Math.floor((1 - texY) * this.windHeight); // use texY instead of p.y
+                  const lat = 2 * Math.atan(Math.exp(Math.PI * (1 - 2 * p.y))) - Math.PI / 2;
+                  const texY = (lat / Math.PI + 0.5);
+                  const py = Math.floor((1 - texY) * this.windHeight); // use texY instead of p.y
                   const idx = (py * this.windWidth + px) * 4;
-
-                  //u max, u min
-                  //v max, v min
-                  const u = (this.windData[idx] / 255.0) * (26.8 - (-21.32)) + (-21.32);
-                  const v = (this.windData[idx + 1] / 255.0) * (21.42 - (-21.57)) + (-21.57);
+                  const u = (this.windData[idx] / 255.0) * (17);
+                  const v = (this.windData[idx + 1] / 255.0) * 360;
+                  // const u = (this.windData[idx] / 255.0) * (26.8 - (-21.32)) + (-21.32);
+                  // const v = (this.windData[idx + 1] / 255.0) * (21.42 - (-21.57)) + (-21.57);
 
                   p.x += u * 0.00001;
                   p.y -= v * 0.00001;
@@ -254,22 +260,38 @@ import fragmentSource from './shaders/fragment.glsl?raw';
                     p.x = Math.random();
                     p.y = Math.random();
                     p.life = Math.random();
+                    p.history = [];
                   }
 
                   // 5. Fill the Float32Array
+                  for (let j=0; j <p.history.length; j++) {
+                    const idx2 = (i * this.trailLength + j) * 2;
+                    const alphaIdx = i * this.trailLength + j;
+                    
+                    this.particlePositions[idx2] = p.history[j].x;
+                    this.particlePositions[idx+1] = p.history[j].y;
+
+                    const ageFraction = j / (p.history.length-1 || 1);
+                    this.particleAlphas[alphaIdx] = ageFraction * 0.8;
+                  }
                   this.particlePositions[i * 2] = p.x;
                   this.particlePositions[i * 2 + 1] = p.y;
               }
 
               // 6. Draw the particles as points
+              const totalPoints = this.numParticles * this.trailLength;
               gl.bindBuffer(gl.ARRAY_BUFFER, this.particleBuffer);
               gl.bufferData(gl.ARRAY_BUFFER, this.particlePositions, gl.DYNAMIC_DRAW);
               gl.enableVertexAttribArray(this.aPos);
               gl.vertexAttribPointer(this.aPos, 2, gl.FLOAT, false, 0, 0);
               
+              gl.bindBuffer(gl.ARRAY_BUFFER, this.alphaBuffer);
+              gl.bufferData(gl.ARRAY_BUFFER, this.particleAlphas, gl.DYNAMIC_DRAW);
+              gl.enableVertexAttribArray(this.aAlpha);
+              gl.vertexAttribPointer(this.aAlpha, 1, gl.FLOAT, false, 0, 0);
               // Set a neutral offset for particles (center world)
               gl.uniform1f(offsetLoc, 0); 
-              gl.drawArrays(gl.POINTS, 0, this.numParticles);
+              gl.drawArrays(gl.POINTS, 0, totalPoints);
 
               // 7. Loop the animation
               this.map.triggerRepaint();

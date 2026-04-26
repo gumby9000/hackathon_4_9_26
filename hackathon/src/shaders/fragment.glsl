@@ -1,5 +1,6 @@
 precision highp float;
 varying vec2 v_pos;
+varying float v_alpha;
 uniform sampler2D u_wind;
 uniform float u_uMin;
 uniform float u_uMax;
@@ -19,8 +20,14 @@ void main() {
   float u = color.r * (u_uMax - u_uMin) + u_uMin;
   float v = color.g * (u_vMax - u_vMin) + u_vMin;
 
+  float maxWvht = 17;
+
   float speed = length(vec2(u, v));
-  float n = clamp(speed / 30.0, 0.0, 1.0);
+  // float n = clamp(speed / 22.0, 0.0, 1.0);
+  float n = color.r/255 * 17;
+
+  vec3 lowColor = vec3(0.05, 0.05, 0.2);
+  vec3 highColor = vec3(0.9, 0.3, 0.0);
 
   vec3 c0 = vec3(0.05, 0.05, 0.2);  // Dark Blue (0)
   vec3 c1 = vec3(0.0, 0.4, 0.8);   // Light Blue
@@ -43,4 +50,4 @@ void main() {
     _color = mix(c4, c5, (n - 0.8) * 5.0);
 
   gl_FragColor = vec4(_color, 0.4);
-}
+};

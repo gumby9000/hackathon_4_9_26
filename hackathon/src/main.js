@@ -64,7 +64,8 @@ import fragmentSource from './shaders/fragment.glsl?raw';
                           float v = color.g * (u_vMax - u_vMin) + u_vMin;
 
                           float speed = length(vec2(u, v));
-                          float n = clamp(speed / 22.0, 0.0, 1.0);
+                          //float n = clamp(speed / 22.0, 0.0, 1.0);
+                          float n = color.r;
 
                           vec3 lowColor = vec3(0.05, 0.05, 0.2);
                           vec3 highColor = vec3(0.9, 0.3, 0.0);
@@ -84,7 +85,7 @@ import fragmentSource from './shaders/fragment.glsl?raw';
                           else if (n < 0.8) _color = mix(c3, c4, (n - 0.6) * 5.0);
                           else              _color = mix(c4, c5, (n - 0.8) * 5.0);
 
-                          gl_FragColor = vec4(_color, 0.4);
+                          gl_FragColor = vec4(_color, 0.9);
                       }`;
 
           const vertexShader = gl.createShader(gl.VERTEX_SHADER);
@@ -189,10 +190,10 @@ import fragmentSource from './shaders/fragment.glsl?raw';
           gl.bindTexture(gl.TEXTURE_2D, this.windTexture);
           gl.uniform1i(this.uWindLocation, 0);
           
-          gl.uniform1f(this.uMinLoc, -21.32);
-          gl.uniform1f(this.uMaxLoc, 26.8);
-          gl.uniform1f(this.vMinLoc, -21.57);
-          gl.uniform1f(this.vMaxLoc, 21.42);
+          gl.uniform1f(this.uMinLoc, 0);
+          gl.uniform1f(this.uMaxLoc, 17);
+          gl.uniform1f(this.vMinLoc, 0);
+          gl.uniform1f(this.vMaxLoc, 17);
 
           gl.uniformMatrix4fv(
             gl.getUniformLocation(this.program, 'u_matrix'),
@@ -299,10 +300,12 @@ import fragmentSource from './shaders/fragment.glsl?raw';
               gl.vertexAttribPointer(this.aAlpha, 1, gl.FLOAT, false, 0, 0);
               // Set a neutral offset for particles (center world)
               gl.uniform1f(offsetLoc, 0); 
+              gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
               gl.drawArrays(gl.POINTS, 0, totalPoints);
 
               // 7. Loop the animation
               this.map.triggerRepaint();
+              gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
           }
         }
       };

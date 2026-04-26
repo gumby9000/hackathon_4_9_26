@@ -226,56 +226,64 @@ import fragmentSource from './shaders/fragment.glsl?raw';
           
           if (this.windData) {
               for (let i = 0; i < this.numParticles; i++) {
-                  const p = this.particles[i];
+                const p = this.particles[i];
 
-                  // p.history.push({x: p.x, y: p.y});
-                  // if(p.history.length > this.trailLength) p.history.shift();
+                // p.history.push({x: p.x, y: p.y});
+                // if(p.history.length > this.trailLength) p.history.shift();
 
-                  // 1. Map 0.0-1.0 pos to wind image pixels
-                  const px = Math.floor(p.x * this.windWidth);
-                  const lat = 2 * Math.atan(Math.exp(Math.PI * (1 - 2 * p.y))) - Math.PI / 2;
-                  const texY = (lat / Math.PI + 0.5);
-                  const py = Math.floor((1 - texY) * this.windHeight); // use texY instead of p.y
-                  const idx = (py * this.windWidth + px) * 4;
-                  const u = (this.windData[idx] / 255.0) * (17);
-                  const v = (this.windData[idx + 1] / 255.0) * 360;
-                  // const u = (this.windData[idx] / 255.0) * (26.8 - (-21.32)) + (-21.32);
-                  // const v = (this.windData[idx + 1] / 255.0) * (21.42 - (-21.57)) + (-21.57);
+                // 1. Map 0.0-1.0 pos to wind image pixels
+                const px = Math.floor(p.x * this.windWidth);
+                const lat =
+                  2 * Math.atan(Math.exp(Math.PI * (1 - 2 * p.y))) -
+                  Math.PI / 2;
+                const texY = lat / Math.PI + 0.5;
+                const py = Math.floor((1 - texY) * this.windHeight); // use texY instead of p.y
+                const idx = (py * this.windWidth + px) * 4;
+                // const u = (this.windData[idx] / 255.0) * (17);
+                // const v = (this.windData[idx + 1] / 255.0) * 360;
+                const mag = (this.windData[idx] / 255.0) * (17);
+                const rad = (this.windData[idx + 1] * Math.PI) / 180;
 
-                  p.x += u * 0.00001;
-                  p.y -= v * 0.00001;
-                  p.life -= 0.01;
+                // For 'direction from' (standard met/ocean data)
+                const u = -mag * Math.cos(rad);
+                const v = -mag * Math.sin(rad);
+                // const u = (this.windData[idx] / 255.0) * (26.8 - (-21.32)) + (-21.32);
+                // const v = (this.windData[idx + 1] / 255.0) * (21.42 - (-21.57)) + (-21.57);
 
-                  if(p.life <= 0) {
-                    // if(idx/4 % 2 == 0) {
-                    //   p.x = 0.99 + Math.random() * 0.01;
-                    //   p.y = 0.55 + Math.random() * 0.1;
-                    //   console.log(p.x + ", " + p.y)
-                    // } else {
-                    //   p.x = Math.random() * 0.01;
-                    //   p.y = 0.3 + Math.random() * 0.1;
-                    //   // console.log(p.x + ", " + p.y)
-                    // }
-                    // p.life = (Math.random() * 10) +Math.random();
-                    p.x = Math.random();
-                    p.y = Math.random();
-                    p.life = Math.random();
-                    p.history = [];
-                  }
+                p.x += u * 0.00001;
+                p.y -= v * 0.00001;
+                p.life -= 0.01;
 
-                  // 5. Fill the Float32Array
-                  for (let j=0; j <p.history.length; j++) {
-                    const idx2 = (i * this.trailLength + j) * 2;
-                    const alphaIdx = i * this.trailLength + j;
-                    
-                    this.particlePositions[idx2] = p.history[j].x;
-                    this.particlePositions[idx+1] = p.history[j].y;
+                if (p.life <= 0) {
+                  // if(idx/4 % 2 == 0) {
+                  //   p.x = 0.99 + Math.random() * 0.01;
+                  //   p.y = 0.55 + Math.random() * 0.1;
+                  //   console.log(p.x + ", " + p.y)
+                  // } else {
+                  //   p.x = Math.random() * 0.01;
+                  //   p.y = 0.3 + Math.random() * 0.1;
+                  //   // console.log(p.x + ", " + p.y)
+                  // }
+                  // p.life = (Math.random() * 10) +Math.random();
+                  p.x = Math.random();
+                  p.y = Math.random();
+                  p.life = Math.random();
+                  p.history = [];
+                }
 
-                    const ageFraction = j / (p.history.length-1 || 1);
-                    this.particleAlphas[alphaIdx] = ageFraction * 0.8;
-                  }
-                  this.particlePositions[i * 2] = p.x;
-                  this.particlePositions[i * 2 + 1] = p.y;
+                // 5. Fill the Float32Array
+                for (let j = 0; j < p.history.length; j++) {
+                  const idx2 = (i * this.trailLength + j) * 2;
+                  const alphaIdx = i * this.trailLength + j;
+
+                  this.particlePositions[idx2] = p.history[j].x;
+                  this.particlePositions[idx + 1] = p.history[j].y;
+
+                  const ageFraction = j / (p.history.length - 1 || 1);
+                  this.particleAlphas[alphaIdx] = ageFraction * 0.8;
+                }
+                this.particlePositions[i * 2] = p.x;
+                this.particlePositions[i * 2 + 1] = p.y;
               }
 
               // 6. Draw the particles as points

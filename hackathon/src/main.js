@@ -70,28 +70,35 @@ import fragmentSource from './shaders/fragment.glsl?raw';
                           vec3 lowColor = vec3(0.05, 0.05, 0.2);
                           vec3 highColor = vec3(0.9, 0.3, 0.0);
                           
-                          vec3 c0 = vec3(0.05, 0.05, 0.2);  // Dark Blue (0)
-                          vec3 c1 = vec3(0.0, 0.4, 0.8);   // Light Blue
-                          vec3 c2 = vec3(0.21, 0.82, 0.4);   // Green
-                          vec3 c3 = vec3(0.933, 0.92, 0.055);   // Yellow
-                          vec3 c4 = vec3(0.992, 0.45, 0.15);   // Orange/Red
-                          vec3 c5 = vec3(0.722, 0.024, 0.063);   // Purple (Peak)
 
-                          // vec3 c0 = vec3(0.05, 0.05, 0.2);  // Dark Blue (0)
-                          // vec3 c1 = vec3(0.0, 0.4, 0.8);   // Light Blue
-                          // vec3 c2 = vec3(0.0, 0.8, 0.4);   // Green
-                          // vec3 c3 = vec3(0.9, 0.9, 0.2);   // Yellow
-                          // vec3 c4 = vec3(0.9, 0.3, 0.0);   // Orange/Red
-                          // vec3 c5 = vec3(0.6, 0.1, 0.6);   // Purple (Peak)
+vec3 c0 = vec3(0.015, 0.023, 0.231);  // #04063b (0ft)
+    vec3 c1 = vec3(0.051, 0.439, 0.933);  // #0d70ee (2ft)
+    vec3 c2 = vec3(0.094, 0.898, 0.663);  // #18e5a9 (4ft)
+    vec3 c3 = vec3(0.208, 0.816, 0.169);  // #35d02b (6ft)
+    vec3 c4 = vec3(0.933, 0.918, 0.055);  // #eeea0e (8ft)
+    vec3 c5 = vec3(0.992, 0.604, 0.149);  // #fd9a26 (10ft)
+    vec3 c6 = vec3(0.992, 0.333, 0.129);  // #fd5521 (12ft)
+    vec3 c7 = vec3(0.722, 0.024, 0.063);  // #b80610 (16ft)
+    vec3 c8 = vec3(0.635, 0.165, 0.655);  // #a22aa7 (18ft)
+    vec3 c9 = vec3(0.361, 0.082, 0.400);  // #5c1566 (40ft)
 
-                          vec3 _color;
+    vec3 _color;
 
-                          if (n == 0.0)      _color = vec3(0.05, 0.05, 0.1);
-                          else if (n < 0.2) _color = mix(c0, c1, n * 5.0);
-                          else if (n < 0.4) _color = mix(c1, c2, (n - 0.2) * 5.0);
-                          else if (n < 0.6) _color = mix(c2, c3, (n - 0.4) * 5.0);
-                          else if (n < 0.8) _color = mix(c3, c4, (n - 0.6) * 5.0);
-                          else              _color = mix(c4, c5, (n - 0.8) * 5.0);
+    // Normalizing stops based on a 40ft max scale
+    // Stops: 0, 2, 4, 6, 8, 10, 12, 16, 18, 40
+    // Normalized (val/40): 0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.45, 1.0
+
+    if (n == 0.0)      _color = vec3(0.0, 0.0, 0.0);
+    else if (n < 0.05) _color = mix(c0, c1, (n - 0.0) / 0.05);
+    else if (n < 0.1)  _color = mix(c1, c2, (n - 0.05) / 0.05);
+    else if (n < 0.15) _color = mix(c2, c3, (n - 0.1) / 0.05);
+    else if (n < 0.2)  _color = mix(c3, c4, (n - 0.15) / 0.05);
+    else if (n < 0.25) _color = mix(c4, c5, (n - 0.2) / 0.05);
+    else if (n < 0.3)  _color = mix(c5, c6, (n - 0.25) / 0.05);
+    else if (n < 0.4)  _color = mix(c6, c7, (n - 0.3) / 0.1);
+    else if (n < 0.45) _color = mix(c7, c8, (n - 0.4) / 0.05);
+    else               _color = mix(c8, c9, (n - 0.45) / 0.55)
+;
 
                           gl_FragColor = vec4(_color, 0.9);
                       }`;
@@ -250,29 +257,19 @@ import fragmentSource from './shaders/fragment.glsl?raw';
                 const idx = (py * this.windWidth + px) * 4;
                 // const u = (this.windData[idx] / 255.0) * (17);
                 // const v = (this.windData[idx + 1] / 255.0) * 360;
-                const mag = (this.windData[idx] / 255.0) * (17);
-                const rad = (this.windData[idx + 1] * Math.PI) / 180;
+                // const mag = (this.windData[idx] / 255.0) * (17);
+                const mag = 4;
+                const deg = (this.windData[idx + 1] / 255.0) * 360; 
+                // const deg = 0; <- this creates straight north south particles
+                const rad = deg * (Math.PI / 180);
+                const u = -mag * Math.sin(rad) * 0.00001;
+                const v = mag * Math.cos(rad) * 0.00001;
 
-                // For 'direction from' (standard met/ocean data)
-                const u = -mag * Math.cos(rad);
-                const v = mag * Math.sin(rad);
-                // const u = (this.windData[idx] / 255.0) * (26.8 - (-21.32)) + (-21.32);
-                // const v = (this.windData[idx + 1] / 255.0) * (21.42 - (-21.57)) + (-21.57);
-
-                p.x += u * 0.00001;
-                p.y -= v * 0.00001;
+                p.x += u;
+                p.y += v;
                 p.life -= 0.01;
 
                 if (p.life <= 0) {
-                  // if(idx/4 % 2 == 0) {
-                  //   p.x = 0.99 + Math.random() * 0.01;
-                  //   p.y = 0.55 + Math.random() * 0.1;
-                  //   console.log(p.x + ", " + p.y)
-                  // } else {
-                  //   p.x = Math.random() * 0.01;
-                  //   p.y = 0.3 + Math.random() * 0.1;
-                  //   // console.log(p.x + ", " + p.y)
-                  // }
                   // p.life = (Math.random() * 10) +Math.random();
                   p.x = Math.random();
                   p.y = Math.random();
@@ -282,14 +279,18 @@ import fragmentSource from './shaders/fragment.glsl?raw';
 
                 // 5. Fill the Float32Array
                 for (let j = 0; j < p.history.length; j++) {
-                  const idx2 = (i * this.trailLength + j) * 2;
+                  // const idx2 = (i * this.trailLength + j) * 2;
                   const alphaIdx = i * this.trailLength + j;
 
-                  this.particlePositions[idx2] = p.history[j].x;
-                  this.particlePositions[idx + 1] = p.history[j].y;
+                  // this.particlePositions[idx2] = p.x;
+                  // this.particlePositions[idx + 1] = p.y;
 
-                  const ageFraction = j / (p.history.length - 1 || 1);
-                  this.particleAlphas[alphaIdx] = ageFraction * 0.8;
+                  // this.particlePositions[idx2] = p.history[j].x;
+                  // this.particlePositions[idx + 1] = p.history[j].y;
+
+                  // const ageFraction = j / (p.history.length - 1 || 1);
+                  // this.particleAlphas[alphaIdx] = ageFraction * 0.8;
+                  // this.particleAlphas[alphaIdx] = 1.0;
                 }
                 this.particlePositions[i * 2] = p.x;
                 this.particlePositions[i * 2 + 1] = p.y;

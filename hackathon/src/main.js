@@ -49,7 +49,51 @@ import fragmentSource from './shaders/fragment.glsl?raw';
                       uniform float u_uMax;
                       uniform float u_vMin;
                       uniform float u_vMax;
+                      uniform vec2 u_texSize;
 
+vec4 cubic(float v){
+    vec4 n = vec4(1.0, 2.0, 3.0, 4.0) - v;
+    vec4 s = n * n * n;
+    float x = s.x;
+    float y = s.y - 4.0 * s.x;
+    float z = s.z - 4.0 * s.y + 6.0 * s.x;
+    float w = 6.0 - x - y - z;
+    return vec4(x, y, z, w) * (1.0/6.0);
+}
+
+vec4 textureBicubic(sampler2D sampler, vec2 texCoords){
+
+    vec2 invTexSize = 1.0 / u_texSize;
+    
+    vec2 scaledCoords = texCoords * u_texSize - 0.5;
+
+    vec2 fxy = fract(scaledCoords);
+    scaledCoords -= fxy;
+
+    vec4 xcubic = cubic(fxy.x);
+    vec4 ycubic = cubic(fxy.y);
+    
+    vec4 c = scaledCoords.xxyy + vec2(-0.5, 1.5).xyxy;
+    
+    vec4 s = vec4(xcubic.xz + xcubic.yw, ycubic.xz + ycubic.yw);
+    vec4 offset = c + vec4(xcubic.yw, ycubic.yw) / s;
+
+    offset *= invTexSize.xxyy;
+
+    vec4 sample0 = texture2D(sampler, offset.xz);
+    vec4 sample1 = texture2D(sampler, offset.yz);
+    vec4 sample2 = texture2D(sampler, offset.xw);
+    vec4 sample3 = texture2D(sampler, offset.yw);
+    
+    float sx = s.x / (s.x + s.y);
+    float sy = s.z / (s.z + s.w);
+    
+    return mix(
+        mix(sample3, sample2, sx), mix(sample1, sample0, sx)
+      , sy);
+    // return vec4(0, 0, 0, 1);;
+    
+}
                       void main() {
                       
                           float y = v_pos.y;
@@ -58,7 +102,8 @@ import fragmentSource from './shaders/fragment.glsl?raw';
                           float texY =  (lat / 3.14159265 + 0.5);
                           
                           vec2 lookupPos = vec2(v_pos.x, texY);
-                          vec4 color = texture2D(u_wind, lookupPos);
+                          // vec4 color = texture2D(u_wind, lookupPos);
+                          vec4 color = textureBicubic(u_wind, lookupPos);
                           if (color.a < 0.01) {
                             discard; // This tells the GPU to skip painting this pixel entirely
                           }
@@ -170,6 +215,7 @@ import fragmentSource from './shaders/fragment.glsl?raw';
           this.uMaxLoc = gl.getUniformLocation(this.program, "u_uMax");
           this.vMinLoc = gl.getUniformLocation(this.program, "u_vMin");
           this.vMaxLoc = gl.getUniformLocation(this.program, "u_vMax");
+          this.texSizeLoc = gl.getUniformLocation(this.program, "u_texSize");
 
           this.aPos = gl.getAttribLocation(this.program, 'a_pos');
           this.aAlpha = gl.getAttribLocation(this.program, 'a_alpha');
@@ -229,6 +275,7 @@ import fragmentSource from './shaders/fragment.glsl?raw';
           gl.uniform1f(this.uMaxLoc, 17);
           gl.uniform1f(this.vMinLoc, 0);
           gl.uniform1f(this.vMaxLoc, 17);
+          gl.uniform2f(this.texSizeLoc, this.windWidth, this.windHeight);
 
           gl.uniformMatrix4fv(
             gl.getUniformLocation(this.program, 'u_matrix'),

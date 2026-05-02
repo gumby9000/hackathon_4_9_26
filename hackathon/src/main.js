@@ -10,8 +10,8 @@ import fragmentSource from './shaders/fragment.glsl?raw';
       container: 'map', // container ID
       projection: 'mercator',
       style: "mapbox://styles/mapbox/dark-v11",
-      center: [-50,27],
-      zoom: 2,
+      center: [-80,27],
+      zoom: 5,
       minZoom: 2,
       pitchWithRotate: false,
       dragRotate: false,

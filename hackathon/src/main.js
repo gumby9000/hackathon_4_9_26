@@ -130,13 +130,13 @@ import fragmentSource from './shaders/fragment.glsl?raw';
                           // Normalized stops (Feet / 83.6)
                           // 0, 2ft(0.02), 4ft(0.04), 6ft(0.07), 10ft(0.12), 15ft(0.18), 25ft(0.30), 45ft(0.54), 60ft(0.72), 83.6ft(1.0)
 
-                          if (n < 2.0)      _color = mix(c0, c1, (n - 2.0) / 2.0);
-                          else if (n < 4.0) _color = mix(c1, c2, (n - 2.0) / 2.0);
-                          else if (n < 6.0) _color = mix(c2, c3, (n - 4.0) / 2.0); // 6ft Milestone
-                          else if (n < 10.0) _color = mix(c3, c4, (n - 6.0) / 4.0); // 10ft Milestone
-                          else if (n < 15.0) _color = mix(c4, c5, (n - 10.0) / 5.0); 
-                          else if (n < 25.0) _color = mix(c5, c6, (n - 15.0) / 10.0);
-                          else if (n < 45.0) _color = mix(c6, c7, (n - 25.0) / 20.0); // 45ft Milestone
+                          if (n < 2.0)      _color = mix(c0, c1, (n-2.0) / 2.0);
+                          else if (n < 4.0) _color = mix(c1, c2, (n-4.0) / 2.0);
+                          else if (n < 6.0) _color = mix(c2, c3, (n - 6.0) / 2.0); // 6ft Milestone
+                          else if (n < 10.0) _color = mix(c3, c4, (n - 10.0) / 2.0); // 10ft Milestone
+                          else if (n < 15.0) _color = mix(c4, c5, (n - 15.0) / 2.0); 
+                          else if (n < 25.0) _color = mix(c5, c6, (n - 25.0) / 10.0);
+                          else if (n < 45.0) _color = mix(c6, c7, (n - 45.0) / 20.0); // 45ft Milestone
                           else if (n < 60.0) _color = mix(c7, c8, (n - 45.0) / 15.0);
                           else               _color = mix(c8, c9, (n - 60.0) / 0.28);
 
